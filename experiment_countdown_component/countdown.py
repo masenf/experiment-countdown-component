@@ -5,7 +5,7 @@ import pynecone as pc
 from pynecone.components.tags.tag import Tag
 from pynecone.event import EVENT_ARG
 from pynecone.utils.imports import ImportDict
-from pynecone.var import BaseVar
+from pynecone.var import BaseVar, ImportVar
 
 
 @dataclass
@@ -40,6 +40,7 @@ class Countdown(pc.Component):
 
     library = "react-countdown"
     tag = "Countdown"
+    is_default = True
 
     date: pc.Var[str] = "0"
     key: pc.Var[str] = "0"
@@ -54,13 +55,9 @@ class Countdown(pc.Component):
 
     def _get_imports(self) -> ImportDict:
         imports = super()._get_imports()
-        imports.pop(self.library, None)  # handle the import in _get_custom_code
         if self.ref.name:
-            imports.setdefault("react", set()).add("useRef")
+            imports.setdefault("react", set()).add(ImportVar(tag="useRef"))
         return imports
-
-    def _get_custom_code(self) -> str | None:
-        return "import Countdown from 'react-countdown'"
 
     def _get_hooks(self) -> str | None:
         hooks = super()._get_hooks()
