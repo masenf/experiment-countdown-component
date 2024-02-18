@@ -1,3 +1,6 @@
+*.db
+*.py[cod]
 .web
-pynecone.db
 __pycache__
+__pycache__/
+pynecone.db

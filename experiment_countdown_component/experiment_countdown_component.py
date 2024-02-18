@@ -1,7 +1,7 @@
 import datetime
 import uuid
 
-import pynecone as pc
+import reflex as rx
 
 from .countdown import Countdown
 
@@ -9,7 +9,7 @@ from .countdown import Countdown
 REF = "countdown_reference"
 
 
-class State(pc.State):
+class State(rx.State):
     _date: datetime.datetime = datetime.datetime.now()
     _timer_complete: bool = False
     timer_secs: int = 60
@@ -17,12 +17,12 @@ class State(pc.State):
     timer_running: bool = False
     timer_paused: bool = True
 
-    @pc.var
+    @rx.var
     def date(self) -> str:
         return self._date.isoformat()
 
     def set_timer_secs(self, ts: int):
-        self.timer_secs = ts
+        self.timer_secs = int(ts)
 
     def add_sec(self, sec: int | float):
         self._date = self._date + datetime.timedelta(seconds=sec)
@@ -50,22 +50,26 @@ class State(pc.State):
         self._timer_complete = True
         return self.on_stop(time_delta)
 
-    @pc.var
+    @rx.var
     def timer_complete(self) -> bool:
         return self.timer_key and self._timer_complete
 
 
-def index() -> pc.Component:
-    return pc.center(
-        pc.vstack(
-            pc.hstack(
-                pc.number_input(value=State.timer_secs, on_change=State.set_timer_secs),
-                pc.button("Reset", on_click=State.do_start),
+def index() -> rx.Component:
+    return rx.center(
+        rx.vstack(
+            rx.hstack(
+                rx.input(
+                    type="number",
+                    value=State.timer_secs.to(str),
+                    on_change=State.set_timer_secs,
+                ),
+                rx.button("Reset", on_click=State.do_start),
             ),
-            pc.heading(
+            rx.heading(
                 Countdown.create(
+                    id=REF,
                     date=State.date,
-                    ref=REF,
                     on_start=State.on_start,
                     on_pause=State.on_pause,
                     on_stop=State.on_stop,
@@ -73,18 +77,18 @@ def index() -> pc.Component:
                 ),
                 font_size="2em",
             ),
-            pc.cond(
-                State.timer_key and State.timer_complete,
-                pc.text("Countdown Success! 🎉"),
-                pc.hstack(
-                    pc.cond(
+            rx.cond(
+                State.timer_key & State.timer_complete,
+                rx.text("Countdown Success! 🎉"),
+                rx.hstack(
+                    rx.cond(
                         State.timer_paused,
-                        pc.button("Start", on_click=Countdown.get_api(REF).start()),
-                        pc.button("Pause", on_click=Countdown.get_api(REF).pause()),
+                        rx.button("Start", on_click=Countdown.get_api(REF).start()),
+                        rx.button("Pause", on_click=Countdown.get_api(REF).pause()),
                     ),
-                    pc.button("Stop", on_click=Countdown.get_api(REF).stop()),
-                    pc.button("+1m", on_click=lambda: State.add_sec(60)),
-                    pc.button("-1m", on_click=lambda: State.add_sec(-60)),
+                    rx.button("Stop", on_click=Countdown.get_api(REF).stop()),
+                    rx.button("+1m", on_click=lambda: State.add_sec(60)),
+                    rx.button("-1m", on_click=lambda: State.add_sec(-60)),
                 ),
             ),
         ),
@@ -93,6 +97,5 @@ def index() -> pc.Component:
 
 
 # Add state and page to the app.
-app = pc.App(state=State)
+app = rx.App()
 app.add_page(index)
-app.compile()
