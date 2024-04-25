@@ -3,32 +3,26 @@ import uuid
 
 import reflex as rx
 
-from .countdown import Countdown
-
-
-REF = "countdown_reference"
+from .countdown import countdown
 
 
 class State(rx.State):
-    _date: datetime.datetime = datetime.datetime.now()
     _timer_complete: bool = False
+    date: datetime.datetime = datetime.datetime.now()
     timer_secs: int = 60
     timer_key: str = ""
     timer_running: bool = False
     timer_paused: bool = True
 
-    @rx.var
-    def date(self) -> str:
-        return self._date.isoformat()
-
-    def set_timer_secs(self, ts: int):
-        self.timer_secs = int(ts)
-
     def add_sec(self, sec: int | float):
-        self._date = self._date + datetime.timedelta(seconds=sec)
+        self.date = self.date + datetime.timedelta(seconds=sec)
 
-    def do_start(self):
-        self._date = datetime.datetime.now() + datetime.timedelta(
+    def do_reset(self, form_data):
+        try:
+            self.timer_secs = int(form_data.get("ts", 0))
+        except ValueError:
+            return
+        self.date = datetime.datetime.now() + datetime.timedelta(
             seconds=int(self.timer_secs)
         )
         self.timer_key = str(uuid.uuid4())
@@ -56,26 +50,30 @@ class State(rx.State):
 
 
 def index() -> rx.Component:
+    countdown_1 = countdown(
+        date=State.date,
+        on_start=State.on_start,
+        on_pause=State.on_pause,
+        on_stop=State.on_stop,
+        on_complete=State.on_complete,
+    )
+
     return rx.center(
         rx.vstack(
-            rx.hstack(
-                rx.input(
-                    type="number",
-                    value=State.timer_secs.to(str),
-                    on_change=State.set_timer_secs,
+            rx.form(
+                rx.hstack(
+                    rx.input(
+                        type="number",
+                        name="ts",
+                        default_value=State.timer_secs.to(str),
+                    ),
+                    rx.button("Reset"),
                 ),
-                rx.button("Reset", on_click=State.do_start),
+                on_submit=State.do_reset,
             ),
             rx.heading(
-                Countdown.create(
-                    id=REF,
-                    date=State.date,
-                    on_start=State.on_start,
-                    on_pause=State.on_pause,
-                    on_stop=State.on_stop,
-                    on_complete=State.on_complete,
-                ),
-                font_size="2em",
+                countdown_1,
+                size="9",
             ),
             rx.cond(
                 State.timer_key & State.timer_complete,
@@ -83,14 +81,15 @@ def index() -> rx.Component:
                 rx.hstack(
                     rx.cond(
                         State.timer_paused,
-                        rx.button("Start", on_click=Countdown.get_api(REF).start()),
-                        rx.button("Pause", on_click=Countdown.get_api(REF).pause()),
+                        rx.button("Start", on_click=countdown_1.start()),
+                        rx.button("Pause", on_click=countdown_1.pause()),
                     ),
-                    rx.button("Stop", on_click=Countdown.get_api(REF).stop()),
-                    rx.button("+1m", on_click=lambda: State.add_sec(60)),
-                    rx.button("-1m", on_click=lambda: State.add_sec(-60)),
+                    rx.button("Stop", on_click=countdown_1.stop()),
+                    rx.button("+1m", on_click=State.add_sec(60)),
+                    rx.button("-1m", on_click=State.add_sec(-60)),
                 ),
             ),
+            align="center",
         ),
         padding_top="10%",
     )
